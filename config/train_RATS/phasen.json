@@ -1,0 +1,81 @@
+{
+    "seed": 1234,
+    "description": "null",
+    "root_dir": "Experiments/",
+    "cudnn_deterministic": false,
+    "trainer": {
+        "module": "trainer.causal_trainer",
+        "main": "Trainer",
+        "epochs": 21,
+        "save_checkpoint_interval": 20,
+        "validation": {
+            "interval": 20,
+            "find_max": true,
+            "custom": {
+                "visualization_limit": 20
+            }
+        }
+    },
+    "model": {
+        "module": "model.phasen",
+        "main": "PHASEN",
+        "args": {
+            "n_fft": 512,
+            "win_length": 512,
+            "hop_length": 256,
+            "transform_type": "exponent"
+        }
+    },
+    "optimizer": {
+        "lr": 5e-4,
+        "beta1": 0.9,
+        "beta2": 0.999,
+        "weight_decay": 0.0
+    },
+    "lr_scheduler":{
+        "decay_factor": 0.5,
+        "patience": 4
+    },
+    "train_dataset": {
+        "module": "dataset.waveform_dataset_dynamic_simulation",
+        "main": "Dataset", 
+        "args": {
+            "dataset_list": "filelists/train_filelist.txt",
+            "limit": null,
+            "offset": 0,
+            "sample_rate": 16000,
+            "is_training": true,
+            "sample_length": 48000,
+            "do_normalize": true,
+            "additive_noise_list": "filelists/noise_filelists/seen_noise.txt",
+            "SNR_values": [0, 5, 10, 15],
+            "rir_list": "filelists/noise_filelists/seen_rirs.txt"
+        }
+    },
+    "validation_dataset": {
+        "module": "dataset.waveform_dataset_dynamic_simulation",
+        "main": "Dataset",
+        "args": {
+            "dataset_list": "filelists/valid_filelist.txt",
+            "limit": null,
+            "offset": 0,
+            "sample_rate": 16000,
+            "is_training": false,
+            "sample_length": 48000,
+            "do_normalize": true,
+            "additive_noise_list": "filelists/noise_filelists/seen_noise.txt",
+            "SNR_values": [0, 5, 10, 15],
+            "rir_list": "filelists/noise_filelists/seen_rirs.txt"
+        }
+    },
+    "train_dataloader": {
+        "batch_size": 32,
+        "num_workers": 32,
+        "shuffle": true,
+        "pin_memory": true,
+        "collate_fn": {
+            "module": "dataset.waveform_dataset_dynamic_simulation",
+            "main": "collate_fn"
+        }
+    }
+}

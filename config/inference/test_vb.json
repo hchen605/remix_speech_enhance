@@ -1,0 +1,21 @@
+{
+    "dataset": {
+        "module": "dataset.waveform_dataset",
+        "main": "Dataset",
+        "args": {
+            "dataset_list": "filelists/test_vb.txt",
+            "limit": 1000,
+            "offset": 0,
+            "sample_rate": 16000,
+            "is_training": false,
+            "sample_length": 48000,
+            "do_normalize": true
+        }
+    },
+    "inference": {
+        "module": "inferencer.inferencer_with_reference",
+        "main": "Inferencer",
+        "sr": 16000,
+        "inference_type": "full_band_no_truncation"
+    }
+}
