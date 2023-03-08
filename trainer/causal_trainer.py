@@ -28,7 +28,8 @@ class Trainer(BaseTrainer):
             clean_2 = clean_2.to(self.device)  # [Batch, length]
 
             clean = torch.unsqueeze(clean_1, 1) # [Batch, 1, length]
-            clean = torch.stack((clean_1,clean_2),dim=1)
+            clean = torch.stack((clean_1, clean_2),dim=1)
+
             #loss = self.model(noisy, clean_1)
             enhanced = self.model(noisy)
             sisnr = batch_SDR_torch(enhanced, clean)
@@ -53,7 +54,7 @@ class Trainer(BaseTrainer):
         visualization_limit = self.validation_custom_config["visualization_limit"]
 
 
-        for i, (noisy, clean, name) in tqdm(enumerate(self.validation_dataloader), desc="Inference"):
+        for i, (noisy, clean_1, clean_2, name) in tqdm(enumerate(self.validation_dataloader), desc="Inference"):
             assert len(name) == 1, "The batch size of inference stage must 1."
             name = name[0]
 
@@ -62,24 +63,31 @@ class Trainer(BaseTrainer):
                 continue
 
             noisy = noisy.to(self.device)  # [Batch, length]
-            clean = clean.to(self.device)  # [Batch, length]
+            clean_1 = clean_1.to(self.device)  # [Batch, length]
+            clean_2 = clean_2.to(self.device)  # [Batch, length]
+
+            clean = torch.unsqueeze(clean_1, 1) # [Batch, 1, length]
+            clean = torch.stack((clean_1, clean_2),dim=1)
 
             loss = self.model(noisy, clean)
             #enhanced = self.model.inference(noisy)
             enhanced = self.model(noisy)
+            sisnr = batch_SDR_torch(enhanced, clean)
+            loss = -torch.mean(sisnr)
 
             loss_total += loss.item()
             noisy = noisy.squeeze(0).cpu().numpy()
+            enhanced = enhanced[:,0,:]
             enhanced = enhanced.squeeze(0).cpu().numpy() # remove the batch dimension
-            clean = clean.squeeze(0).cpu().numpy()
+            clean_1 = clean_1.squeeze(0).cpu().numpy()
 
-            assert len(noisy) == len(clean) == len(enhanced)
+            assert len(noisy) == len(clean_1) == len(enhanced)
 
             if i <= np.min([visualization_limit, len(self.validation_dataloader)]):
-                self.spec_audio_visualization(noisy, enhanced, clean, name, epoch)
+                self.spec_audio_visualization(noisy, enhanced, clean_1, name, epoch)
 
             noisy_list.append(noisy)
-            clean_list.append(clean)
+            clean_list.append(clean_1)
             enhanced_list.append(enhanced)
 
         self.writer.add_scalar(f"Loss/Validation", loss_total / len(self.validation_dataloader), epoch)

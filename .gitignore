@@ -129,4 +129,9 @@ dmypy.json
 .pyre/
 
 #log
-.0
+Experiment/tasnet/logs/*
+Experiment/tasnet/checkpoints/*
+
+#output
+output/*
+output/enhanced/*

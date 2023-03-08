@@ -29,7 +29,7 @@ def inference_wrapper(dataloader, model, device, inference_args, enhanced_dir):
     else:
         sample_rate = 16000
 
-    for noisy, clean, name in tqdm(dataloader, desc="Inference"):
+    for noisy, clean_1, clean_2, name in tqdm(dataloader, desc="Inference"):
         assert len(name) == 1, "The batch size of inference stage must 1."
         name = name[0]
 
@@ -38,14 +38,18 @@ def inference_wrapper(dataloader, model, device, inference_args, enhanced_dir):
             continue
 
         noisy = noisy.to(device)
-        enhanced = model.inference(noisy)
+        enhanced = model(noisy)
 
         noisy = noisy.squeeze().cpu().numpy()
-        enhanced = enhanced.squeeze().cpu().numpy()
-        clean = clean.squeeze().numpy()
+        enhanced_1 = enhanced[:,0,:]
+        enhanced_2 = enhanced[:,1,:]
+        enhanced_1 = enhanced_1.squeeze().cpu().numpy()
+        enhanced_2 = enhanced_2.squeeze().cpu().numpy()
+        clean_1 = clean_1.squeeze().numpy()
+        clean_2 = clean_2.squeeze().numpy()
 
-        noisy_stoi = STOI(clean, noisy, sr=sample_rate)
-        enhanced_stoi = STOI(clean, enhanced, sr=sample_rate)
+        noisy_stoi = STOI(clean_1, noisy, sr=sample_rate)
+        enhanced_stoi = STOI(clean_1, enhanced_1, sr=sample_rate)
 
         if (noisy_stoi == 1e-5) or (enhanced_stoi == 1e-5):
             assert enhanced_stoi == noisy_stoi
@@ -53,8 +57,8 @@ def inference_wrapper(dataloader, model, device, inference_args, enhanced_dir):
             continue
         
         try:
-            result["noisy_pesq"].append(PESQ(clean, noisy, sr=sample_rate))
-            result["enhanced_pesq"].append(PESQ(clean, enhanced, sr=sample_rate))
+            result["noisy_pesq"].append(PESQ(clean_1, noisy, sr=sample_rate))
+            result["enhanced_pesq"].append(PESQ(clean_1, enhanced_1, sr=sample_rate))
         except NoUtterancesError:
             print("can't found utterence in {}! ignore it".format(name))
             continue
@@ -64,11 +68,12 @@ def inference_wrapper(dataloader, model, device, inference_args, enhanced_dir):
 
 
         result["filename"].append(name)
-        result["noisy_stoi"].append(STOI(clean, noisy, sr=sample_rate))
-        result["enhanced_stoi"].append(STOI(clean, enhanced, sr=sample_rate))
+        result["noisy_stoi"].append(STOI(clean_1, noisy, sr=sample_rate))
+        result["enhanced_stoi"].append(STOI(clean_1, enhanced_1, sr=sample_rate))
 
 
-        sf.write(enhanced_dir / f"{name}_after.wav", enhanced, samplerate=sample_rate)
+        sf.write(enhanced_dir / f"{name}_after.wav", enhanced_1, samplerate=sample_rate)
+        sf.write(enhanced_dir / f"{name}_noise.wav", enhanced_2, samplerate=sample_rate)
         #sf.write(enhanced_dir / f"{name}_before.wav", noisy, samplerate=sample_rate)
         #sf.write(enhanced_dir / f"{name}_clean.wav", clean, samplerate=sample_rate)
 
