@@ -6,8 +6,8 @@
     "trainer": {
         "module": "trainer.causal_trainer",
         "main": "Trainer",
-        "epochs": 21,
-        "save_checkpoint_interval": 5,
+        "epochs": 20,
+        "save_checkpoint_interval": 1,
         "validation": {
             "interval": 5,
             "find_max": true,

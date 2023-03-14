@@ -28,12 +28,16 @@ class Trainer(BaseTrainer):
             clean_2 = clean_2.to(self.device)  # [Batch, length]
 
             clean = torch.unsqueeze(clean_1, 1) # [Batch, 1, length]
-            clean = torch.stack((clean_1, clean_2),dim=1)
-
+            clean = torch.stack((clean_1, clean_2),dim=1)# [Batch, 2, length]
+            #print('clean shape: ',clean.shape)
             #loss = self.model(noisy, clean_1)
             enhanced = self.model(noisy)
-            sisnr = batch_SDR_torch(enhanced, clean)
-            loss = -torch.mean(sisnr)
+
+            ## loss function
+            #sisnr = batch_SDR_torch(enhanced, clean) # [B,], PIT
+            #loss = -torch.mean(sisnr)
+            #check PIT specified
+            loss = self.loss_pit(enhanced[:,0,:], enhanced[:,1,:], clean_1, clean_2)
             
             loss.backward()
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
@@ -69,11 +73,12 @@ class Trainer(BaseTrainer):
             clean = torch.unsqueeze(clean_1, 1) # [Batch, 1, length]
             clean = torch.stack((clean_1, clean_2),dim=1)
 
-            loss = self.model(noisy, clean)
+            #loss = self.model(noisy)
             #enhanced = self.model.inference(noisy)
             enhanced = self.model(noisy)
-            sisnr = batch_SDR_torch(enhanced, clean)
-            loss = -torch.mean(sisnr)
+            #sisnr = batch_SDR_torch(enhanced, clean)
+            #loss = -torch.mean(sisnr)
+            loss = self.loss_pit(enhanced[:,0,:], enhanced[:,1,:], clean_1, clean_2)
 
             loss_total += loss.item()
             noisy = noisy.squeeze(0).cpu().numpy()
@@ -90,5 +95,30 @@ class Trainer(BaseTrainer):
             clean_list.append(clean_1)
             enhanced_list.append(enhanced)
 
+        print("Loss/Validation: ", loss_total / len(self.validation_dataloader), "epoch ", epoch)
         self.writer.add_scalar(f"Loss/Validation", loss_total / len(self.validation_dataloader), epoch)
         return self.metrics_visualization(noisy_list, clean_list, enhanced_list, epoch)
+
+    def SISNR(self, output, target):
+        #output:(B,length)
+        batchsize = np.shape(output)[0]
+        target = target.view(batchsize,-1)
+        output = output - torch.mean(output,1,keepdim=True)
+        target = target - torch.mean(target,1,keepdim=True)
+
+        s_shat = torch.sum(output*target,1,keepdim=True)
+        s_2 = torch.sum(target**2,1,keepdim=True)
+        s_target = (s_shat / s_2) * target   #(B,length)
+
+        e_noise = output - s_target    
+
+        return 10*torch.log10(torch.sum(e_noise**2,1,keepdim=True)\
+                    /torch.sum(s_target**2,1,keepdim=True))        #(B,1)
+
+
+    def loss_pit(self,output1,output2,target1,target2):
+    	#PIT loss
+        loss1 = self.SISNR(output1,target1)+self.SISNR(output2,target2)
+        loss2 = self.SISNR(output1,target2)+self.SISNR(output2,target1)
+        min = torch.min(loss1, loss2)   #(128,1)
+        return torch.mean(min)        #scale
