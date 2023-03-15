@@ -261,6 +261,62 @@ class BaseTrainer:
 
         return (self._transform_pesq_range(np.mean(pesq_clean_denoise)) + np.mean(stoi_clean_denoise)) / 2
 
+    def metrics_visualization_separation(self, noisy_list, clean_list, source_1_list, source_2_list, epoch):
+        stoi_clean_noisy = []  # Clean and noisy
+        stoi_clean_source_1= []  # Clean and denoisy
+        stoi_clean_source_2= []  # Clean and denoisy
+
+        pesq_clean_noisy = []
+        pesq_clean_source_1 = []
+        pesq_clean_source_2 = []
+
+        sisdr_clean_noisy = []
+        sisdr_clean_source_1 = []
+        sisdr_clean_source_2 = []
+
+        for i, (noisy, source_1, source_2, clean) in enumerate(zip(noisy_list, source_1_list, source_2_list,  clean_list)):
+            try:
+                pesq_clean_noisy.append(PESQ(clean, noisy, sr=16000))
+                pesq_clean_source_1.append(PESQ(clean, source_1, sr=16000))
+                pesq_clean_source_2.append(PESQ(clean, source_2, sr=16000))
+            except NoUtterancesError:
+                print("can't found utterence in number {} uttererance! ignore it (duration = {} sec)".format(i+1, len(noisy)/16000))
+                continue
+
+            stoi_clean_noisy.append(STOI(clean, noisy, sr=16000))
+            stoi_clean_source_1.append(STOI(clean, source_1, sr=16000))
+            stoi_clean_source_2.append(STOI(clean, source_2, sr=16000))
+
+            sisdr_clean_noisy.append(SI_SDR(clean, noisy))
+            sisdr_clean_source_1.append(SI_SDR(clean, source_1))
+            sisdr_clean_source_2.append(SI_SDR(clean, source_2))
+
+
+        self.writer.add_scalars(f"Validation/STOI", {
+            "clean and noisy": np.mean(stoi_clean_noisy),
+            "clean and source 1": np.mean(stoi_clean_source_1),
+            "clean and source 2": np.mean(stoi_clean_source_2)
+        }, epoch)
+        self.writer.add_scalars(f"Validation/PESQ", {
+            "clean and noisy": np.mean(pesq_clean_noisy),
+            "clean and source 1": np.mean(pesq_clean_source_1),
+            "clean and source 2": np.mean(pesq_clean_source_2)
+        }, epoch)
+        self.writer.add_scalars(f"Validation/SI-SDR", {
+            "clean and noisy": np.mean(sisdr_clean_noisy),
+            "clean and source 1": np.mean(sisdr_clean_source_1),
+            "clean and source 2": np.mean(sisdr_clean_source_2)
+        }, epoch)
+
+        print('pesq_clean_noisy: ', np.mean(pesq_clean_noisy), 'stoi_clean_noisy: ', np.mean(stoi_clean_noisy))
+        print('pesq_clean_source_1: ',np.mean(pesq_clean_source_1), 'stoi_clean_source_1: ',np.mean(stoi_clean_source_1))
+        print('pesq_clean_source_2: ',np.mean(pesq_clean_source_2), 'stoi_clean_source_2: ',np.mean(stoi_clean_source_2))
+        print('SI-SDR_clean_noisy: ',np.mean(sisdr_clean_noisy))
+        print('SI-SDR_clean_source_1: ',np.mean(sisdr_clean_source_1))
+        print('SI-SDR_clean_source_2: ',np.mean(sisdr_clean_source_2))
+
+        return (self._transform_pesq_range(np.mean(pesq_clean_source_1)) + np.mean(stoi_clean_source_1)) / 2
+
     def train(self):
         for epoch in range(self.start_epoch, self.epochs + 1):
             print(f"============== {epoch} epoch ==============")

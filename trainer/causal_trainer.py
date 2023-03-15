@@ -52,6 +52,8 @@ class Trainer(BaseTrainer):
         noisy_list = []
         clean_list = []
         enhanced_list = []
+        source_1_list = []
+        source_2_list = []
 
         loss_total = 0.0
 
@@ -82,8 +84,10 @@ class Trainer(BaseTrainer):
 
             loss_total += loss.item()
             noisy = noisy.squeeze(0).cpu().numpy()
-            enhanced = enhanced[:,0,:]
-            enhanced = enhanced.squeeze(0).cpu().numpy() # remove the batch dimension
+            source_1 = enhanced[:,0,:]
+            source_1 = source_1.squeeze(0).cpu().numpy() # remove the batch dimension
+            source_2 = enhanced[:,1,:]
+            source_2 = source_2.squeeze(0).cpu().numpy() # remove the batch dimension
             clean_1 = clean_1.squeeze(0).cpu().numpy()
 
             assert len(noisy) == len(clean_1) == len(enhanced)
@@ -93,11 +97,13 @@ class Trainer(BaseTrainer):
 
             noisy_list.append(noisy)
             clean_list.append(clean_1)
-            enhanced_list.append(enhanced)
+            source_1_list.append(source_1)
+            source_2_list.append(source_2)
+
 
         print("Loss/Validation: ", loss_total / len(self.validation_dataloader), "epoch ", epoch)
         self.writer.add_scalar(f"Loss/Validation", loss_total / len(self.validation_dataloader), epoch)
-        return self.metrics_visualization(noisy_list, clean_list, enhanced_list, epoch)
+        return self.metrics_visualization_separation(noisy_list, clean_list, source_1_list, source_2_list, epoch)
 
     def SISNR(self, output, target):
         #output:(B,length)
